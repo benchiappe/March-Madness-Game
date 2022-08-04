@@ -1,0 +1,422 @@
+/*  
+  Program 6: March Madness Frenzy 2.0
+
+  Author: Ben Chiappe
+  Date: April 18, 2022
+  Class: CS 141, Spring 2022, UIC
+  System: Mac using Replit
+
+*/
+
+#include <iostream>   // For Input and Output
+#include <fstream>    // For file input and output
+#include <cassert>    // For the assert statement
+#include <vector>     // For vectors
+#include <sstream>    // For reading in CSV file and splitting by commas
+
+using namespace std;
+
+class Node; // this is the declaration, so that it can be used inside class Game below
+            // the definition of the Node class comes after the Game class
+
+class Game {
+    public:
+        // Default up to Fully-Qualified Constructor
+        Game(string region="N/A", int rankOne=-1, string teamOne="N/A", int scoreOne=-1,
+             int rankTwo=-1, string teamTwo="N/A", int scoreTwo=-1, 
+             string winningTeam="N/A", int roundNumber=-1, int gameNumber=-1){
+            this->region = region;
+            this->team1Rank = rankOne;
+            this->team1Name = teamOne;
+            this->team1Score = scoreOne;
+            this->team2Rank = rankTwo;
+            this->team2Name = teamTwo;
+            this->team2Score = scoreTwo;
+            this->winningTeam = winningTeam;
+            this->roundNum = roundNumber;
+            this->gameNum = gameNumber;
+            this->subBrackets = NULL;
+        }
+
+        // Copy Constructor
+        Game(const Game & otherGame) {
+            this->region = otherGame.region;
+            this->team1Rank = otherGame.team1Rank;
+            this->team1Name = otherGame.team1Name;
+            this->team1Score = otherGame.team1Score;
+            this->team2Rank = otherGame.team2Rank;
+            this->team2Name = otherGame.team2Name;
+            this->team2Score = otherGame.team2Score;
+            this->winningTeam = otherGame.winningTeam;
+            this->roundNum = otherGame.roundNum;
+            this->gameNum = otherGame.gameNum;
+            this->subBrackets = otherGame.subBrackets;
+        }
+
+        // Getters / Accessor methods
+        string getRegion(){ return region; }
+        int getRoundNum(){ return roundNum; }
+        string getTeamOneName() { return team1Name; }
+        int getTeamOneRank() { return team1Rank; }
+        int getTeamOneScore() { return team1Score; }
+        string getTeamTwoName() { return team2Name; }
+        int getTeamTwoRank() { return team2Rank; }
+        int getTeamTwoScore() { return team2Score; }
+        string getWinner(){ return winningTeam; }
+        int getGameNum() {return gameNum; }
+        Node* getSubBrackets() { return subBrackets; }
+
+        // Setters / Mutator methods
+        void setTeamOneName(string newTeamOneName) { this->team1Name = newTeamOneName; }
+        void setTeamTwoName(string newTeamTwoName) { this->team2Name = newTeamTwoName; }
+        void setWinner(string newWinner) { this->winningTeam = newWinner; }
+        void setSubBrackets(Node* newSubBrackets) { this->subBrackets = newSubBrackets; }
+
+        // Utility function to display the game
+        void displayGame() {
+            cout << "Round " << roundNum << ", Game " << gameNum << ": "
+                 << team1Name << " vs " << team2Name << ". "
+                 << "Winner: " << winningTeam << "\n";
+        }
+    
+    private:
+        string region;
+        int roundNum;
+        int gameNum;
+        string team1Name;
+        string team2Name; 
+        string winningTeam;
+        int team1Rank;
+        int team2Rank;
+        int team1Score;
+        int team2Score;
+        Node* subBrackets;  // This is a pointer to a Node, in order to represent the subbracts as a linked list
+};
+
+// Node class in order to implement linked lists
+class Node {
+
+    public:
+        Node() {
+            pNext = NULL;
+        }
+
+        Node(Game theSubBracket, Node* thePNext) {
+            subBracket = theSubBracket;
+            pNext = thePNext;
+        }
+
+        // ideally these should be private, but we are making them public to make the code a bit simpler
+        Game subBracket;
+        Node* pNext;
+};
+
+//--------------------------------------------------------------------------------
+// Display welcome message, introducing the user to the program
+void displayWelcomeMessage(){
+    cout << "Program 6: March Madness Frenzy 2.0\n"
+        << "CS 141, Spring 2022, UIC\n"
+        << "\n"
+        << "This program reads in data from NCAA Basketball Tournaments (aka March Madness). "
+        << "It uses the hierarchy of the brackets (implemented via linked lists) to allow you "
+        << "to see the path taken to the championship, and evaluate the resulting brackets if "
+        << "some games had a different outcome.\n"
+        << endl;
+}//end displayWelcomeMessage()
+
+//Display menu options
+void MenuOptionMessage(){
+  cout << "Select a menu option:" << endl;
+  cout << "   1. See the sub-brackets of one game" << endl;
+  cout << "   2. Display the path of the winning team to the championship" << endl;
+  cout << "   3. Undo the championship game for a given number of rounds" << endl;
+  cout << "   4. Exit" << endl;
+  cout << "Your choice --> ";
+}
+
+//--------------------------------------------------------------------------------
+// Read in the game data and store in a vector
+void readInGameData(string filename, vector<Game>& games) {
+
+    string region, teamOne, teamTwo, winningTeam;
+    int rankOne, rankTwo, roundNumber, gameNumber, scoreOne, scoreTwo;
+
+    ifstream inStream;
+    inStream.open(filename);
+    assert(inStream.fail() == false);
+
+    string row;
+    getline(inStream, row); // read in header from file, and ignore
+
+    // read in each line of the file
+    while (getline(inStream, row)) {
+        stringstream s_stream(row); //create stringstream from the row
+
+        // separate the line by commas into each column
+        int colNum = 0;
+        while (s_stream.good()) {
+            string columnVal;
+            getline(s_stream, columnVal, ','); //get first string delimited by comma
+
+            // use the substring to fill in the appropriate part of the BillboardRecord
+            switch (colNum) {
+                case 0:
+                    region = columnVal;
+                    break;
+                case 1:
+                    rankOne = stoi(columnVal);
+                    break;
+                case 2:
+                    teamOne = columnVal; 
+                    break;
+                case 3:
+                    if(columnVal != "") { scoreOne = stoi(columnVal); }
+                    else { scoreOne = -1; }
+                    break;
+                case 4:
+                    rankTwo = stoi(columnVal);
+                    break;
+                case 5:
+                    teamTwo = columnVal;
+                    break;
+                case 6:
+                    if(columnVal != "") { scoreTwo = stoi(columnVal); }
+                    else { scoreTwo = -1; }
+                    break;
+                case 7:
+                    winningTeam = columnVal;
+                    break;
+                case 8:
+                    roundNumber = stoi(columnVal);
+                    break;
+                case 9:
+                    gameNumber = stoi(columnVal);
+                    break;
+                default: // should not get here, because there are only 10 columns
+                    cout << "More columns in the file than expected... Exiting program" << endl;
+                    exit(0);
+                    break;
+            }
+            colNum++;
+        }
+        // Create instance of the class using the column values
+        Game oneGame;
+        oneGame = Game(region, rankOne, teamOne, scoreOne, rankTwo, teamTwo, scoreTwo, winningTeam, roundNumber, gameNumber);
+        // and add it to the vector
+        games.push_back(oneGame);
+
+    } // end while(getline(instream, row))
+
+} // end readInGameData() function
+
+//--------------------------------------------------------------------------------
+// Identify the sub-brackets for each game and modify the class instances in the vector accordingly
+void determineSubBrackets(vector<Game>& games) {
+      
+    // Nested loop to find the sub-brackets for each game
+    // We go in reverse, starting at round 1 and going up to round 6
+    //      Note - this is so that when we add subbrackets for round 6, the subbrackets for the games
+    //             in round 5 have been determined, and so on and so forth
+    for(int i=games.size()-1; i>=0; i--) {
+      Node *head = NULL; //points to front of linked list
+        for(int j=games.size()-1; j>=0; j--) {
+            // Check that we are not looking at the same game
+            if(i==j) {
+                continue;
+            }
+            // games[j] is a sub-bracket of games[i] if it is from the previous round,
+            // and if the winning team from games[j] is one of the teams in games[i]
+            if( (games.at(j).getRoundNum() == (games.at(i).getRoundNum() - 1)) &&
+                (games.at(j).getWinner() == games.at(i).getTeamOneName() || games.at(j).getWinner() == games.at(i).getTeamTwoName()) ) {
+                    // TO DO: Add games[j] to the linked list of sub-brackets for games[i]
+                    // ...
+                    //create a new Node for games[j] and set head to pNext of the new Node
+                    Node *newNode = new Node(games.at(j), head);
+                    //update head to point to the new Node
+                    head = newNode;
+                }
+        }
+        //after we have iterated through all games[j]
+        //set sub brackets of game[i]
+        games[i].setSubBrackets(head);
+    }
+
+} // end of determineSubBrackets() function
+
+//Menu Option 1
+void MenuOption1(vector<Game> games){
+  //prompt user for round number
+  int roundNum;
+  cout << "Enter the round number of the game: " << endl;
+  cin >> roundNum;
+  //prompt user for winning team with getline
+  string winningTeam;
+  cout << "Enter the winning team of the game: " << endl;
+  cin.ignore();
+  getline(cin, winningTeam);
+  //Determines if the specified game is found
+  int found = 0;
+  //iterate through games and find games[i] with roundNum and winningTeam the user selected
+  for(unsigned int i=0; i<games.size(); i++){
+    if(games[i].getRoundNum() == roundNum && games[i].getWinner() == winningTeam){
+      //print the game info
+      cout << "The game is: " << endl;
+      cout << "Round " << games[i].getRoundNum() << ", " << "Game " << games[i].getGameNum() << ": " << games[i].getTeamOneName() << "vs " << games[i].getTeamTwoName() << ". " << "Winner: " << games[i].getWinner() << endl << endl;
+      //game is found because entering if statement
+      found = 1;
+      //iterate through sub bracket
+      Node *temp = games[i].getSubBrackets();
+      //check if temp == NULL (list is empty) the break if so
+      if(temp == NULL){
+        cout << "This game does not have any sub-brackets." << endl;
+        break;
+      }
+      cout << "Sub-brackets of this game are: " << endl;
+      while(temp!=NULL){
+        cout << "Round " << temp->subBracket.getRoundNum() << ", " << "Game " << temp->subBracket.getGameNum() << ": " << temp->subBracket.getTeamOneName() << " vs " <<  temp->subBracket.getTeamTwoName() << ". " << "Winner: " << temp->subBracket.getWinner() << endl;
+        temp = temp->pNext;
+       }
+    }
+  } 
+  if(found == 0){
+    //print message that game not found
+    cout << "Sorry, no games matching that round number and winning team were found." << endl;
+  } 
+}
+
+void MenuOption2(vector<Game> games, string winningTeam, int roundNumber){
+  if(roundNumber > 6){//base case - print out champ game
+    cout << "Round " << games[0].getRoundNum() << ", " << "Game " << games[0].getGameNum() << ": " << games[0].getTeamOneName() << " vs " << games[0].getTeamTwoName() << ". " << "Winner: " << games[0].getWinner() << endl;
+  }
+  else{//recursive case
+    for(unsigned int i=0; i<games.size(); i++){
+      //find game with current round number and winner
+      if(games[i].getRoundNum() == roundNumber && games[i].getWinner() == winningTeam){
+        Node *temp = games[i].getSubBrackets();
+        //print out sub brackets
+        while(temp!=NULL){
+          if(temp->subBracket.getWinner() == winningTeam){
+            cout << "Round " << temp->subBracket.getRoundNum() << ", " << "Game " << temp->subBracket.getGameNum() << ": " << temp->subBracket.getTeamOneName() << " vs " << temp->subBracket.getTeamTwoName() << ". " << "Winner: " << temp->subBracket.getWinner() << endl;
+          }
+          temp = temp->pNext;
+        }
+      }
+    }
+    //recursive call for next round
+    MenuOption2(games, winningTeam, roundNumber + 1);
+  }
+}
+
+
+void MenuOption3(vector<Game> &games){
+  //prompt user for round numbers they want to undo
+  int numOfRounds;
+  cout << "Enter the number of rounds that you would like to undo (max of 6 allowed): " << endl;
+  cin >> numOfRounds;
+  while(numOfRounds > 6){
+    cout << "Invalid entry. Try again." << endl;
+    cout << "Enter the number of rounds that you would like to undo (max of 6 allowed): " << endl;
+    cin >> numOfRounds;
+  }
+  //create variable for current round
+  int currentRound = 7-numOfRounds;
+  int startingRound = currentRound;
+  //store the original winner
+  string originalWinner = games[0].getWinner();
+  //declare a variable to store new winner
+  string newWinner;
+  //iterate through games 
+  //if roundNum == currentRound getWinner == originalWinner
+  for(unsigned int i=0; i<games.size(); i++){
+    if(games[i].getRoundNum() == currentRound && games[i].getWinner() == originalWinner){
+      //set newWinner to team1 or team2 depending on who is winner
+      if(games[i].getWinner() == games[i].getTeamOneName()){
+        newWinner = games[i].getTeamTwoName();
+      }
+      else{
+        newWinner = games[i].getTeamOneName();
+      }
+    }
+  }
+  //loop through each round
+  for(int i=1; i<=numOfRounds; i++){
+    for(unsigned int j=0; j<games.size(); j++){
+      //check if games[i] round is currentRound if so we will modify the game and sub brackets
+      if(games[j].getRoundNum() == currentRound){
+        if(games[j].getWinner() == originalWinner){
+          //set a temp Node to games[j].getSubBrackets()
+          Node *temp = games[j].getSubBrackets(); 
+          //iterate through sub brackets by using pNext
+          while(temp!=NULL){    
+            if(temp->subBracket.getWinner() == originalWinner && temp->subBracket.getRoundNum() >= startingRound){
+              if(temp->subBracket.getRoundNum() != startingRound){
+              if(temp->subBracket.getTeamOneName() == originalWinner){
+                temp->subBracket.setTeamOneName(newWinner);
+              }
+              else{
+                temp->subBracket.setTeamTwoName(newWinner);
+              }
+              }
+              temp->subBracket.setWinner(newWinner);
+            }
+            temp = temp->pNext;
+          }
+          if(games[j].getRoundNum() != startingRound){
+          if(games[j].getWinner() == games[j].getTeamOneName()){
+            games[j].setTeamOneName(newWinner);
+          }
+          else{
+            games[j].setTeamTwoName(newWinner);
+          }
+          }
+          games[j].setWinner(newWinner);
+        }
+      }
+    }
+    currentRound++;
+  }
+  MenuOption2(games, games[0].getWinner(), 1);
+}
+
+// ----------------------------------------------------------------------
+// Main() function of the program
+int main(){
+    //Vector to hold tournament games
+    vector<Game> games;
+    //Display welcome message for the program
+    displayWelcomeMessage();
+    // Prompt user for the name of the file with the data
+    string fileName;
+    cout << "Enter the name of the file with the data for the NCAA tournament: ";
+    cin >> fileName;
+    //Display menu option message
+    MenuOptionMessage();
+    // Read in the data from the file into a vector
+    readInGameData(fileName, games);
+    // Also identify sub-brackets for each game
+    determineSubBrackets(games);
+    // TO DO: Handle the different menu options
+    // ...
+    int menuOption = 0;
+    //prompt user for option and read in
+    cin >> menuOption;
+    while(menuOption!=4){
+      if(menuOption == 1){
+        MenuOption1(games);
+      }
+      else if(menuOption == 2){
+        cout << "Path to the championship: " << endl;
+        MenuOption2(games, games[0].getWinner(), 1);
+      }
+      else if(menuOption == 3){
+        MenuOption3(games);
+      }
+      else{
+        cout << "Invalid value.  Please re-enter a value from the menu options below." << endl << endl;
+      }
+      MenuOptionMessage();
+      cin >> menuOption;
+    }
+    cout << "Exiting program...";
+    return 0;
+} // end main()
